@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mark Present - Scan Class QR</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      text-align: center; 
+      padding: 20px; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h2 { color: #333; margin-top: 0; }
+    p { color: #666; }
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      margin: 10px 0 20px 0;
+    }
+    #reader { 
+      width: 100%; 
+      max-width: 500px; 
+      margin: 20px auto; 
+      border: 2px solid #667eea;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #result { 
+      font-size: 1.2em; 
+      margin: 20px; 
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .success {
+      color: white;
+      background-color: #28a745;
+    }
+    .error {
+      color: white;
+      background-color: #dc3545;
+    }
+    .info {
+      color: #667eea;
+      background-color: #e7f3ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📱 Class 12A2 - Mark Attendance</h2>
+    <p>Select your name and scan the class QR code to mark yourself present</p>
+    
+    <label for="studentName"><strong>Select your name:</strong></label>
+    <select id="studentName">
+      <option value="">-- Choose your name --</option>
+      <option value="ALEXANDER ROWINA CHADINE">ALEXANDER ROWINA CHADINE</option>
+      <option value="CLOETE BERLINE">CLOETE BERLINE</option>
+      <option value="ZOEBAT TEMBISA">ZOEBAT TEMBISA</option>
+    </select>
+    
+    <div id="reader"></div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    // Replace with your actual backend (Google Apps Script web app URL)
+    const backendUrl = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+
+    let isProcessing = false;
+
+    html5QrCode.start(
+      { facingMode: "environment" },
+      config,
+      (decodedText) => {
+        if (isProcessing) return;
+        
+        const name = document.getElementById("studentName").value;
+        if (!name) {
+          showResult("Please select your name first!", "error");
+          return;
+        }
+
+        isProcessing = true;
+        showResult("Processing attendance...", "info");
+
+        fetch(backendUrl, {
+          method: "POST",
+          body: JSON.stringify({ 
+            name: name, 
+            session: decodedText, 
+            timestamp: new Date().toISOString() 
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showResult(`✅ Success! ${name} marked present.`, "success");
+            html5QrCode.stop();
+          } else {
+            showResult(`❌ Error: ${data.message || "Failed to mark attendance"}`, "error");
+            isProcessing = false;
+          }
+        })
+        .catch(err => {
+          showResult(`❌ Error: ${err.message}`, "error");
+          isProcessing = false;
+        });
+      },
+      (error) => { 
+        console.log(error); 
+      }
+    ).catch(err => {
+      showResult(`❌ Camera Error: ${err}`, "error");
+    });
+
+    function showResult(message, type) {
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerText = message;
+      resultDiv.className = type;
+    }
+  </script>
+</body>
+</html>
